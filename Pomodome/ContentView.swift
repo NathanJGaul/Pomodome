@@ -8,13 +8,22 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var currentTimeProportion = 0.0
     @State private var work = 20
     @State private var rest = 5
+    @State private var timeRemaining = 0
+    
+    @State var isTimerRunning = false
+    @State private var startTime = Date()
+    @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var totalTime: Int {
         return work + rest
     }
+    
+    var currentTimeProportion: Double {
+        return Double(timeRemaining) / Double(totalTime * 60)
+    }
+    
     var workProportion: Double {
         return Double(work) / Double(totalTime)
     }
@@ -32,6 +41,11 @@ struct ContentView: View {
                 Spacer()
                 ZStack {
                     CircularProgressView(progress: currentTimeProportion, workProportion: workProportion)
+                        .onReceive(timer, perform: { _ in
+                            if self.isTimerRunning {
+                                self.timeRemaining = Int(Date().timeIntervalSince(startTime))
+                            }
+                        })
                 }
                 Spacer()
                 VStack {
@@ -40,28 +54,53 @@ struct ContentView: View {
                     )
                     .foregroundStyle(.white)
                     .tint(.white)
-                    
+                    .disabled(isTimerRunning)
                     Stepper(
                         "Rest: \(rest) mins", value: $rest, in: 1...100, step: 1
                     )
                     .foregroundStyle(.white)
                     .tint(.white)
+                    .disabled(isTimerRunning)
                 }
                 Spacer()
                 Button {
-                    print("Starting Timer")
+                    if isTimerRunning {
+                        self.stopTimer()
+                    } else {
+                        startTime = Date()
+                        self.startTimer()
+                    }
+                    self.isTimerRunning.toggle()
                 } label: {
-                    Text("Start Timer")
-                        .fontWeight(.bold)
-                        .font(.title)
-                        .foregroundStyle(.white)
+                    if isTimerRunning {
+                        Text("Stop Timer")
+                            .fontWeight(.bold)
+                            .font(.title)
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("Start Timer")
+                            .fontWeight(.bold)
+                            .font(.title)
+                            .foregroundStyle(.white)
+                    }
+                    
                 }
                 .padding(8)
                 .background(.orange.opacity(0.75))
                 .clipShape(RoundedRectangle(cornerSize: CGSize(width: 20, height: 10)))
+                
             }
             .padding(50.0)
         }
+    }
+    
+    func stopTimer() {
+        self.timer.upstream.connect().cancel()
+        self.timeRemaining = 0
+    }
+    
+    func startTimer() {
+        self.timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     }
 }
 
